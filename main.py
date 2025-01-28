@@ -5,6 +5,7 @@ from fastapi.security.api_key import APIKeyHeader
 from dotenv import load_dotenv
 import os
 
+
 load_dotenv()
 API_KEY = os.getenv("API_KEY")
 APIKey = APIKeyHeader(name="X-API-Key")
@@ -14,14 +15,12 @@ app = FastAPI()
 task_db_v1 = [
     {"task_id": 1, "task_title": "Laboratory Activity", "task_desc": "Create Lab Act 4", "is_finished": False}
 ]
-
 task_db_v2 = []
 
 class Task(BaseModel):
     task_title: str = Field(..., min_length=1)
     task_desc: str = Field(..., min_length=1)
     is_finished: bool = False
-
 
 def get_task_by_id(task_id: int, task_db: List[dict]):
     return next((task for task in task_db if task["task_id"] == task_id), None)
@@ -30,7 +29,11 @@ def validate_api_key(api_key: str = Depends(APIKey)):
     if api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API Key")
 
-# API Version 1 Endpoints
+@app.get("/")
+def read_root():
+    return {"message": "Hello, World!"}
+
+# === Version 1 ===
 @app.get("/apiv1/tasks/{task_id}")
 def fetch_task_v1(task_id: int):
     if task_id <= 0:
@@ -45,12 +48,7 @@ def fetch_task_v1(task_id: int):
 @app.post("/apiv1/tasks")
 def add_task_v1(task: Task):
     new_task_id = len(task_db_v1) + 1
-    new_task = {
-        "task_id": new_task_id,
-        "task_title": task.task_title,
-        "task_desc": task.task_desc,
-        "is_finished": task.is_finished
-    }
+    new_task = {"task_id": new_task_id, **task.dict()}
     task_db_v1.append(new_task)
     return {"status": "ok", "task": new_task}
 
@@ -66,7 +64,7 @@ def remove_task_v1(task_id: int):
     task_db_v1.remove(task)
     return {"status": "ok", "message": f"Task with id {task_id} has been deleted"}
 
-@app.patch("/apiv1/tasks/{task_id}", status_code=200)
+@app.patch("/apiv1/tasks/{task_id}")
 def modify_task_v1(task_id: int, task: Task):
     if task_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid task ID. Must be greater than 0.")
@@ -75,14 +73,10 @@ def modify_task_v1(task_id: int, task: Task):
     if not existing_task:
         raise HTTPException(status_code=404, detail=f"No task found with id {task_id}")
     
-    existing_task["task_title"] = task.task_title
-    existing_task["task_desc"] = task.task_desc
-    existing_task["is_finished"] = task.is_finished
-    
+    existing_task.update(task.dict())
     return {"status": "updated", "task": existing_task}
 
-
-# API Version 2 Endpoints
+# === Version 2 ===
 @app.get("/apiv2/tasks/{task_id}")
 def fetch_task_v2(task_id: int, api_key: str = Depends(validate_api_key)):
     if task_id <= 0:
@@ -94,19 +88,14 @@ def fetch_task_v2(task_id: int, api_key: str = Depends(validate_api_key)):
     
     return {"status": "ok", "task": task}
 
-@app.post("/apiv2/tasks", status_code=201)
+@app.post("/apiv2/tasks")
 def add_task_v2(task: Task, api_key: str = Depends(validate_api_key)):
     new_task_id = len(task_db_v2) + 1
-    new_task = {
-        "task_id": new_task_id,
-        "task_title": task.task_title,
-        "task_desc": task.task_desc,
-        "is_finished": task.is_finished
-    }
+    new_task = {"task_id": new_task_id, **task.dict()}
     task_db_v2.append(new_task)
     return {"status": "created", "task": new_task}
 
-@app.patch("/apiv2/tasks/{task_id}", status_code=204)
+@app.patch("/apiv2/tasks/{task_id}")
 def modify_task_v2(task_id: int, task: Task, api_key: str = Depends(validate_api_key)):
     if task_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid task ID. Must be greater than 0.")
@@ -115,13 +104,10 @@ def modify_task_v2(task_id: int, task: Task, api_key: str = Depends(validate_api
     if not existing_task:
         raise HTTPException(status_code=404, detail=f"No task found with id {task_id}")
     
-    existing_task["task_title"] = task.task_title
-    existing_task["task_desc"] = task.task_desc
-    existing_task["is_finished"] = task.is_finished
-    
-    return {"status": "updated"}
+    existing_task.update(task.dict())
+    return {"status": "updated", "task": existing_task}
 
-@app.delete("/apiv2/tasks/{task_id}", status_code=204)
+@app.delete("/apiv2/tasks/{task_id}")
 def remove_task_v2(task_id: int, api_key: str = Depends(validate_api_key)):
     if task_id <= 0:
         raise HTTPException(status_code=400, detail="Invalid task ID. Must be greater than 0.")
