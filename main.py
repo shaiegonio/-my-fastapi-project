@@ -31,9 +31,9 @@ def validate_api_key(api_key: str = Depends(APIKey)):
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello, World!"}
+    return {"message": "Hello, Render!"}
 
-# === Version 1 ===
+# API Version 1 Endpoints
 @app.get("/apiv1/tasks/{task_id}")
 def fetch_task_v1(task_id: int):
     if task_id <= 0:
@@ -76,7 +76,7 @@ def modify_task_v1(task_id: int, task: Task):
     existing_task.update(task.dict())
     return {"status": "updated", "task": existing_task}
 
-# === Version 2 ===
+# API Version 2 Endpoints
 @app.get("/apiv2/tasks/{task_id}")
 def fetch_task_v2(task_id: int, api_key: str = Depends(validate_api_key)):
     if task_id <= 0:
